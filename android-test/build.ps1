@@ -45,7 +45,7 @@ Invoke-Checked $java (@('-cp', "$buildTools/lib/d8.jar", 'com.android.tools.r8.D
 Push-Location $PSScriptRoot
 try {
     Invoke-Checked "$buildTools/aapt2.exe" @('compile', '--dir', 'res', '-o', "$workRelative/resources.zip")
-    Invoke-Checked "$buildTools/aapt2.exe" @('link', '-I', 'tooling/platform/android-35/android.jar', '--manifest', 'AndroidManifest.xml', '--min-sdk-version', '26', '--target-sdk-version', '34', '--version-code', '13', '--version-name', '0.2.2-test', '-o', "$workRelative/unsigned.apk", '-R', "$workRelative/resources.zip")
+    Invoke-Checked "$buildTools/aapt2.exe" @('link', '-I', 'tooling/platform/android-35/android.jar', '--manifest', 'AndroidManifest.xml', '--min-sdk-version', '26', '--target-sdk-version', '34', '--version-code', '14', '--version-name', '0.2.3-test', '-o', "$workRelative/unsigned.apk", '-R', "$workRelative/resources.zip")
 } finally { Pop-Location }
 # jar writes portable slash-separated entry names; aapt2 -A on Windows can
 # produce backslashes, which Android's AssetManager cannot resolve.
@@ -57,13 +57,13 @@ $keystore = Join-Path $PSScriptRoot 'keys/local-test.keystore'
 if (!(Test-Path $keystore)) {
     Invoke-Checked (Join-Path $jdk 'bin/keytool.exe') @('-genkeypair', '-keystore', $keystore, '-storepass', 'android', '-keypass', 'android', '-alias', 'androiddebugkey', '-dname', 'CN=Memory Library Local Test,O=Local Development,C=CN', '-keyalg', 'RSA', '-keysize', '2048', '-validity', '10000')
 }
-$apk = Join-Path $PSScriptRoot 'releases/MemoryLibrary-0.2.2-test.apk'
+$apk = Join-Path $PSScriptRoot 'releases/MemoryLibrary-0.2.3-test.apk'
 Invoke-Checked $java @('-jar', "$buildTools/lib/apksigner.jar", 'sign', '--ks', $keystore, '--ks-pass', 'pass:android', '--key-pass', 'pass:android', '--out', $apk, "$work/aligned.apk")
 Invoke-Checked $java @('-jar', "$buildTools/lib/apksigner.jar", 'verify', '--verbose', $apk)
 Push-Location $PSScriptRoot
 try {
-    Invoke-Checked "$buildTools/zipalign.exe" @('-c', '4', 'releases/MemoryLibrary-0.2.2-test.apk')
-    Invoke-Checked "$buildTools/aapt2.exe" @('dump', 'badging', 'releases/MemoryLibrary-0.2.2-test.apk')
+    Invoke-Checked "$buildTools/zipalign.exe" @('-c', '4', 'releases/MemoryLibrary-0.2.3-test.apk')
+    Invoke-Checked "$buildTools/aapt2.exe" @('dump', 'badging', 'releases/MemoryLibrary-0.2.3-test.apk')
 } finally { Pop-Location }
 Push-Location $project
 try { Invoke-Checked 'node' @('scripts/check-android-package.cjs') }
