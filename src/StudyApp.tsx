@@ -192,6 +192,9 @@ function CreatePage({ library, persist, busy }: PageProps) {
         }} />}
       </div> : <button className="upload-paper" onClick={() => input.current?.click()}><span className="tape" /><div className="upload-illustration"><PaperIcon name={saved ? 'check' : 'image'} /></div><h2>{saved ? 'All Done' : 'Add Images'}</h2><span className="paper-button primary"><PaperIcon name="plus" />{saved ? '再添加一些图片' : '选择图片，开始制卡'}</span></button>}
       <div className="creator-savebar">{current ? !pickingRegions && <><button className="paper-button" disabled={!images || !chapterId || busy} onClick={() => saveByInput(true)} onPointerUp={event => { if (event.pointerType === 'touch' && event.isPrimary) { event.preventDefault(); saveByInput(true, true) } }}>保存并继续本图</button><button className="paper-button primary" disabled={!images || !chapterId || busy} onClick={() => saveByInput(false)} onPointerUp={event => { if (event.pointerType === 'touch' && event.isPrimary) { event.preventDefault(); saveByInput(false, true) } }}><PaperIcon name="check" />{busy ? '正在收好…' : index < queue.length - 1 ? '保存，制作下一张' : '保存这张卡片'}</button></> : saved > 0 && <button className="paper-button primary" onClick={() => { if (performance.now() - lastSaveTouch.current > 700) navigate(`/subjects/${subjectId}/chapters/${chapterId}`) }}>去看看我的卡片<PaperIcon name="arrow-right" /></button>}</div>
+      {current && <div className="creator-cancelbar"><button type="button" className="paper-button" disabled={busy} onClick={() => {
+        if (!busy) navigate(subject?.chapters.some(chapter => chapter.id === chapterId) ? `/subjects/${subjectId}/chapters/${chapterId}` : subject ? `/subjects/${subjectId}` : '/library')
+      }}><PaperIcon name="x" />取消制卡</button></div>}
       <p className="maker-status" role="status">{message}</p>
     </section></div>
   </>

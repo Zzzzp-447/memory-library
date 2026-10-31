@@ -186,6 +186,9 @@
 .editor-bottom { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:16px; }
 .editor-bottom>span { font-size:11px; color:#9c896d; }
 .creator-savebar { display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:12px; margin-top:24px; }
+.creator-cancelbar { display:flex; justify-content:flex-end; margin-top:12px; }
+.creator-cancelbar>.paper-button { min-height:44px; }
+@media (max-width:760px) { .creator-cancelbar>.paper-button { width:100%; } }
 .maker-status { font-size:13px; line-height:1.8; color:#a14b36; min-height:24px; margin-top:18px; }
 .queue-list { padding-top:20px; margin-top:20px; border-top:1px dashed #a28a6840; }
 .queue-list>p { font-size:12px; color:#9a876e; margin:0 0 8px; }
