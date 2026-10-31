@@ -1,3 +1,5 @@
+import { readPrintedToc } from './pdf-outline'
+
 export interface ChinaBook {
  id: string; title: string; path: string; category: string; subject: string; kind: string; size: number; complete: boolean
  parts: { path: string; size: number; sha: string; part: number }[]
@@ -46,7 +48,10 @@ export async function readChinaOutline(id: string): Promise<{text:string;source:
  const task=pdfjs.getDocument({data,isEvalSupported:false})
  try {
   const doc=await task.promise; const outline=await doc.getOutline()
-  if(!outline?.length) return { text: '', source }
+  if(!outline?.length) {
+   const text = await readPrintedToc(doc)
+   return { text, source: { ...source, edition: source.edition + (text ? ' · PDF目录页文字' : ' · 未识别到目录') } }
+  }
   const lines:string[]=[]
   const walk=(items:typeof outline,depth:number)=>{for(const item of items){if(lines.length>=200)return;const title=item.title.replace(/\s+/g,' ').trim();if(title)lines.push('  '.repeat(Math.min(depth,3))+title);walk(item.items,depth+1)}}
   walk(outline,0)

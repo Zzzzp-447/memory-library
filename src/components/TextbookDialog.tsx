@@ -28,10 +28,10 @@ export function TextbookDialog({ subjectName, onGenerate }: { subjectName: strin
       <div className="textbook-heading"><h2>Textbook Outline</h2><button aria-label="关闭教材搜索" onClick={() => dialog.current?.close()}><PaperIcon name="x" /></button></div>
       <form onSubmit={search} className="textbook-search"><label>教材书名、作者或 ISBN<input value={query} maxLength={200} onChange={event => setQuery(event.target.value)} required /></label><button disabled={busy}>{busy ? '正在读取…' : '搜索公开书目'}</button></form>
       <label>教材来源<select value={provider} disabled={busy} onChange={event => { setProvider(event.target.value as 'china' | 'openlibrary'); setResults([]); setMessage('') }}><option value="china">ChinaTextbook 教材知识库</option><option value="openlibrary">Open Library 补充书目</option></select></label>
-      <p className="textbook-hint">优先展示已核验目录。请核对版本；其他书籍尝试读取PDF目录书签，扫描版可粘贴目录。</p>
+      <p className="textbook-hint">优先展示已核验目录。其他教材依次读取 PDF 书签和目录页文字；纯扫描版未核验时可粘贴目录。</p>
       <div className="textbook-results">{results.map(book => <button key={book.key} disabled={busy} onClick={async () => {
         setBusy(true); setSelected(book); setMessage(book.source === 'china' && !book.verified ? '正在下载教材并读取目录，可能需要一些时间…' : ''); setTitle(book.title); setSource(null); setOutline('')
-        try { const found = await readBookOutline(book); setTitle(found.source.title); setSource(found.source); setOutline(found.text); setMessage('') }
+        try { const found = await readBookOutline(book); setTitle(found.source.title); setSource(found.source); setOutline(found.text); setMessage(found.text.trim() ? '' : '没有读取到可用目录：此版本可能是纯扫描件，或目录不在可读取的前32页内。请打开教材来源核对并粘贴目录，或选择已核验版本。') }
         catch (error) { setMessage((error as Error).message) }
         finally { setBusy(false) }
       }}><strong>{book.title}</strong><span>{book.author}{book.year ? ` · ${book.year}` : ''}</span><small>{book.source === 'china' ? `${book.verified ? '已核验目录' : '尝试读取PDF目录'} · ${((book.size || 0) / 1048576).toFixed(1)}MB${book.kind === 'supplement' ? ' · 辅导资料' : ''}` : '读取公开目录'}</small></button>)}</div>

@@ -1,0 +1,15 @@
+const assert = require('node:assert/strict')
+;(async () => {
+ const { printedTocLines, readPrintedToc } = await import('../src/lib/pdf-outline.ts')
+ assert.deepEqual(printedTocLines(['第一章 函数与极限 …… 3', '1.1 映射与函数 …… 4', '这里是正文里的函数定义'], true), ['第一章 函数与极限', '  1.1 映射与函数'])
+ assert.deepEqual(printedTocLines(['Chapter 1 Limits .... 3', '1.2 Functions .... 5', 'Chapter 2 Derivatives .... 10'], false), ['Chapter 1 Limits', '  1.2 Functions', 'Chapter 2 Derivatives'])
+ assert.deepEqual(printedTocLines(['第一章 函数与极限', '1.1 映射与函数', '无证据正文不当目录'], false), [])
+ let cleaned = 0
+ const doc = pages => ({ numPages: pages.length, getPage: async number => ({ getTextContent: async () => ({ items: pages[number - 1].map((str, i) => ({ str, transform: [1, 0, 0, 1, 10, 700 - i * 20] })) }), cleanup: () => cleaned++ }) })
+ const result = await readPrintedToc(doc([['书名'], ['目录', '第一章 函数与极限 …… 3', '1.1 映射与函数 …… 4'], ['第二章 导数与微分 …… 20', '2.1 导数 …… 21'], ['第一章 函数与极限', '1.1 定义与例题']]))
+ assert.ok(result.includes('第一章 函数与极限') && result.includes('第二章 导数与微分'))
+ assert.ok(!result.includes('定义与例题'), 'Body text without pagination is not a TOC continuation')
+ assert.equal(await readPrintedToc(doc([[], [], []])), '')
+ assert.ok(cleaned > 0)
+ console.log('PASS printed Chinese/English TOCs, continuation, page-number removal, scanned/empty PDF, no guessed body headings')
+})().catch(error => { console.error(error); process.exitCode = 1 })
