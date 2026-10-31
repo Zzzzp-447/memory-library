@@ -1,0 +1,683 @@
+import {
+  getFictionChapterSummaryPrompt,
+  getNonFictionChapterSummaryPrompt,
+  getChapterConnectionsAnalysisPrompt,
+  getFictionChapterConnectionsAnalysisPrompt,
+  getOverallSummaryPrompt,
+  getFictionOverallSummaryPrompt,
+  getChapterMindMapPrompt,
+  getChapterMindMapStreamPrompt,
+  getMindMapArrowPrompt,
+  getCharacterRelationshipPrompt,
+  getFictionCharacterRelationshipPrompt,
+} from './prompts'
+import type { MindElixirData } from 'mind-elixir'
+import { plaintextToMindElixir } from 'mind-elixir/plaintextConverter'
+import { getLanguageInstruction, type SupportedLanguage } from './prompts/utils'
+import type { AIConfig } from '../types/ai'
+import { getProviderConfig, TOKENDANCE_APP_URL } from '../types/ai'
+import i18n from '../i18n'
+import { appFetch } from '@/lib/fetch'
+import {
+  TokenDanceRecoveryError,
+  parseRecoveryAction,
+} from './tokendanceWallet'
+
+interface Chapter {
+  id: string
+  title: string
+  content: string
+  summary?: string
+  reasoning?: string
+}
+
+interface ModelConfig {
+  apiUrl: string
+  apiKey: string
+  model: string
+}
+
+export class AIService {
+  private config: AIConfig | (() => AIConfig)
+
+  constructor(config: AIConfig | (() => AIConfig)) {
+    this.config = config
+  }
+
+  private getModelConfig(config: AIConfig): ModelConfig {
+    const providerConfig = getProviderConfig(config.provider)
+
+    return {
+      apiUrl: config.apiUrl || providerConfig.defaultApiUrl,
+      apiKey: config.apiKey || '',
+      model: config.model || '',
+    }
+  }
+
+  private getCurrentConfig(): AIConfig {
+    return typeof this.config === 'function' ? this.config() : this.config
+  }
+
+  async summarizeChapter(
+    title: string,
+    content: string,
+    bookType: 'fiction' | 'non-fiction' = 'non-fiction',
+    outputLanguage: SupportedLanguage = 'en',
+    customPrompt?: string,
+    useCustomOnly: boolean = false,
+    abortSignal?: AbortSignal,
+    onStreamUpdate?: (data: { content: string; reasoning?: string }) => void
+  ): Promise<{ content: string; reasoning: string }> {
+    try {
+      const prompt =
+        bookType === 'fiction'
+          ? getFictionChapterSummaryPrompt(
+              title,
+              content,
+              customPrompt,
+              useCustomOnly
+            )
+          : getNonFictionChapterSummaryPrompt(
+              title,
+              content,
+              customPrompt,
+              useCustomOnly
+            )
+
+      const result = await this.generateContentStream(
+        prompt,
+        onStreamUpdate || (() => {}),
+        outputLanguage,
+        abortSignal
+      )
+
+      if (!result.content || result.content.trim().length === 0) {
+        throw new Error('AI返回了空的总结')
+      }
+
+      return {
+        content: result.content.trim(),
+        reasoning: result.reasoning.trim(),
+      }
+    } catch (error) {
+      throw new Error(
+        `${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+    }
+  }
+
+  async analyzeConnections(
+    chapters: Chapter[],
+    outputLanguage: SupportedLanguage = 'en',
+    bookType: 'fiction' | 'non-fiction' = 'non-fiction',
+    abortSignal?: AbortSignal,
+    onStreamUpdate?: (data: { content: string; reasoning?: string }) => void
+  ): Promise<string> {
+    try {
+      // 构建章节摘要信息
+      const chapterSummaries = chapters
+        .map((chapter) => `${chapter.title}:\n${chapter.summary || '无总结'}`)
+        .join('\n\n')
+
+      const prompt =
+        bookType === 'fiction'
+          ? getFictionChapterConnectionsAnalysisPrompt(chapterSummaries)
+          : getChapterConnectionsAnalysisPrompt(chapterSummaries)
+
+      const result = await this.generateContentStream(
+        prompt,
+        onStreamUpdate || (() => {}),
+        outputLanguage,
+        abortSignal
+      )
+      const connections = result.content
+
+      if (!connections || connections.trim().length === 0) {
+        throw new Error('AI返回了空的关联分析')
+      }
+
+      return connections.trim()
+    } catch (error) {
+      throw new Error(
+        `章节关联分析失败: ${error instanceof Error ? error.message : '未知错误'}`
+      )
+    }
+  }
+
+  async generateOverallSummary(
+    bookTitle: string,
+    chapters: Chapter[],
+    outputLanguage: SupportedLanguage = 'en',
+    bookType: 'fiction' | 'non-fiction' = 'non-fiction',
+    abortSignal?: AbortSignal,
+    onStreamUpdate?: (data: { content: string; reasoning?: string }) => void
+  ): Promise<string> {
+    try {
+      // 构建简化的章节信息
+      const chapterInfo = chapters
+        .map(
+          (chapter, index) =>
+            `第${index + 1}章：${chapter.title}，内容：${chapter.summary || '无总结'}`
+        )
+        .join('\n')
+
+      const prompt =
+        bookType === 'fiction'
+          ? getFictionOverallSummaryPrompt(bookTitle, chapterInfo)
+          : getOverallSummaryPrompt(bookTitle, chapterInfo)
+
+      const result = await this.generateContentStream(
+        prompt,
+        onStreamUpdate || (() => {}),
+        outputLanguage,
+        abortSignal
+      )
+      const summary = result.content
+
+      if (!summary || summary.trim().length === 0) {
+        throw new Error('AI返回了空的全书总结')
+      }
+
+      return summary.trim()
+    } catch (error) {
+      throw new Error(
+        `全书总结生成失败: ${error instanceof Error ? error.message : '未知错误'}`
+      )
+    }
+  }
+
+  async generateCharacterRelationship(
+    chapters: Chapter[],
+    outputLanguage: SupportedLanguage = 'en',
+    bookType: 'fiction' | 'non-fiction' = 'non-fiction',
+    abortSignal?: AbortSignal
+  ): Promise<string> {
+    try {
+      // 构建章节摘要信息
+      const chapterSummaries = chapters
+        .map((chapter) => `${chapter.title}:\n${chapter.summary || '无总结'}`)
+        .join('\n\n')
+
+      const prompt =
+        bookType === 'fiction'
+          ? getFictionCharacterRelationshipPrompt(chapterSummaries)
+          : getCharacterRelationshipPrompt(chapterSummaries)
+
+      const result = await this.generateContentStream(
+        prompt,
+        () => {},
+        outputLanguage,
+        abortSignal
+      )
+      const relationship = result.content
+
+      if (!relationship || relationship.trim().length === 0) {
+        throw new Error('AI返回了空的人物关系图')
+      }
+
+      // 提取mermaid代码块
+      const mermaidMatch = relationship.match(/```mermaid\s*([\s\S]*?)```/)
+      if (mermaidMatch && mermaidMatch[1]) {
+        return mermaidMatch[1].trim()
+      }
+
+      // 如果没有代码块，返回原始内容
+      return relationship.trim()
+    } catch (error) {
+      throw new Error(
+        `人物关系图生成失败: ${error instanceof Error ? error.message : '未知错误'}`
+      )
+    }
+  }
+
+  async generateChapterMindMapStream(
+    content: string,
+    outputLanguage: SupportedLanguage = 'en',
+    onStreamUpdate: (data: {
+      plaintext: string
+      mindMap: MindElixirData | null
+      reasoning?: string
+    }) => void,
+    customPrompt?: string,
+    abortSignal?: AbortSignal
+  ): Promise<MindElixirData> {
+    try {
+      const basePrompt = getChapterMindMapStreamPrompt()
+      let prompt = basePrompt + `章节内容：\n${content}`
+
+      // 如果有自定义提示词，则拼接到原始prompt后面
+      if (customPrompt && customPrompt.trim()) {
+        prompt += `\n\n补充要求：${customPrompt.trim()}`
+      }
+
+      let accumulatedPlaintext = ''
+      let lastUpdateTime = 0
+
+      let accumulatedReasoning = ''
+
+      const handleStreamUpdate = (data: {
+        content: string
+        reasoning?: string
+      }) => {
+        accumulatedPlaintext += data.content
+        if (data.reasoning) {
+          accumulatedReasoning += data.reasoning
+        }
+
+        // 节流更新：每500ms更新一次
+        const now = Date.now()
+        if (now - lastUpdateTime >= 500 || lastUpdateTime === 0) {
+          try {
+            // 清理可能的markdown代码块包裹
+            const cleanedText = accumulatedPlaintext
+              .replace(/^```[^\n]*\n?/gm, '')
+              .replace(/```$/gm, '')
+              .trim()
+
+            // 尝试解析为MindElixir数据
+            const mindMapData = plaintextToMindElixir(cleanedText)
+            onStreamUpdate({
+              plaintext: cleanedText,
+              mindMap: mindMapData,
+              reasoning: accumulatedReasoning,
+            })
+          } catch {
+            // 解析失败时仍然传递plaintext，mindMap为null
+            onStreamUpdate({
+              plaintext: accumulatedPlaintext,
+              mindMap: null,
+              reasoning: accumulatedReasoning,
+            })
+          }
+          lastUpdateTime = now
+        }
+      }
+
+      const result = await this.generateContentStream(
+        prompt,
+        handleStreamUpdate,
+        outputLanguage,
+        abortSignal
+      )
+
+      // 最终解析
+      const cleanedText = result.content
+        .replace(/^```[^\n]*\n?/gm, '')
+        .replace(/```$/gm, '')
+        .trim()
+
+      const mindMapData = plaintextToMindElixir(cleanedText)
+
+      // 确保最后一次更新包含完整内容
+      onStreamUpdate({
+        plaintext: cleanedText,
+        mindMap: mindMapData,
+        reasoning: result.reasoning,
+      })
+
+      return mindMapData
+    } catch (error) {
+      throw new Error(
+        `${error instanceof Error ? error.message : 'Unknown error'}`
+      )
+    }
+  }
+
+  async generateMindMapArrows(
+    combinedMindMapData: MindElixirData,
+    outputLanguage: SupportedLanguage = 'en',
+    abortSignal?: AbortSignal
+  ) {
+    try {
+      const basePrompt = getMindMapArrowPrompt()
+      const prompt =
+        basePrompt +
+        `\n\n当前思维导图数据：\n${JSON.stringify(combinedMindMapData, null, 2)}`
+
+      const result = await this.generateContentStream(
+        prompt,
+        () => {},
+        outputLanguage,
+        abortSignal
+      )
+      const arrowsJson = result.content
+
+      return this.parseJsonResponse(
+        arrowsJson,
+        '箭头'
+      ) as MindElixirData['arrows']
+    } catch (error) {
+      throw new Error(
+        `思维导图箭头生成失败: ${error instanceof Error ? error.message : '未知错误'}`
+      )
+    }
+  }
+
+  async generateCombinedMindMap(
+    bookTitle: string,
+    chapters: Chapter[],
+    outputLanguage: SupportedLanguage = 'en',
+    customPrompt?: string,
+    abortSignal?: AbortSignal
+  ) {
+    try {
+      const basePrompt = getChapterMindMapPrompt()
+      const chaptersContent = chapters
+        .map((item) => item.content)
+        .join('\n\n ------------- \n\n')
+      let prompt = `${basePrompt}
+        请为整本书《${bookTitle}》生成一个完整的思维导图，将所有章节的内容整合在一起。
+        章节内容：\n${chaptersContent}`
+
+      // 如果有自定义提示词，则拼接到原始prompt后面
+      if (customPrompt && customPrompt.trim()) {
+        prompt += `\n\n补充要求：${customPrompt.trim()}`
+      }
+      const result = await this.generateContentStream(
+        prompt,
+        () => {},
+        outputLanguage,
+        abortSignal
+      )
+      const mindMapJson = result.content
+
+      return this.parseJsonResponse(mindMapJson, '思维导图') as MindElixirData
+    } catch (error) {
+      throw new Error(
+        `整书思维导图生成失败: ${error instanceof Error ? error.message : '未知错误'}`
+      )
+    }
+  }
+
+  async generateCombinedMindMapStream(
+    bookTitle: string,
+    chapters: Chapter[],
+    onStreamUpdate: (data: {
+      plaintext: string
+      mindMap: MindElixirData | null
+    }) => void,
+    outputLanguage: SupportedLanguage = 'en',
+    customPrompt?: string,
+    abortSignal?: AbortSignal
+  ): Promise<MindElixirData> {
+    try {
+      const basePrompt = getChapterMindMapStreamPrompt()
+      const chaptersContent = chapters
+        .map((item) => item.content)
+        .join('\n\n ------------- \n\n')
+      let prompt = `${basePrompt}
+        请为整本书《${bookTitle}》生成一个完整的思维导图，将所有章节的内容整合在一起。
+        章节内容：\n${chaptersContent}`
+
+      // 如果有自定义提示词，则拼接到原始prompt后面
+      if (customPrompt && customPrompt.trim()) {
+        prompt += `\n\n补充要求：${customPrompt.trim()}`
+      }
+
+      let accumulatedPlaintext = ''
+      let lastUpdateTime = 0
+
+      const handleStreamUpdate = (data: {
+        content: string
+        reasoning?: string
+      }) => {
+        accumulatedPlaintext += data.content
+
+        // 节流更新：每500ms更新一次
+        const now = Date.now()
+        if (now - lastUpdateTime >= 500 || lastUpdateTime === 0) {
+          try {
+            // 清理可能的markdown代码块包裹
+            const cleanedText = accumulatedPlaintext
+              .replace(/^```[^\n]*\n?/gm, '')
+              .replace(/```$/gm, '')
+              .trim()
+
+            // 尝试解析为MindElixir数据
+            const mindMapData = plaintextToMindElixir(cleanedText)
+            onStreamUpdate({ plaintext: cleanedText, mindMap: mindMapData })
+          } catch {
+            // 解析失败时仍然传递plaintext，mindMap为null
+            onStreamUpdate({ plaintext: accumulatedPlaintext, mindMap: null })
+          }
+          lastUpdateTime = now
+        }
+      }
+
+      const result = await this.generateContentStream(
+        prompt,
+        handleStreamUpdate,
+        outputLanguage,
+        abortSignal
+      )
+
+      // 最终解析
+      const cleanedText = result.content
+        .replace(/^```[^\n]*\n?/gm, '')
+        .replace(/```$/gm, '')
+        .trim()
+
+      const mindMapData = plaintextToMindElixir(cleanedText)
+
+      // 确保最后一次更新包含完整内容
+      onStreamUpdate({ plaintext: cleanedText, mindMap: mindMapData })
+
+      return mindMapData
+    } catch (error) {
+      throw new Error(
+        `整书思维导图生成失败: ${error instanceof Error ? error.message : '未知错误'}`
+      )
+    }
+  }
+
+  // 辅助方法：解析AI返回的JSON数据
+  private parseJsonResponse(response: string, errorContext: string): unknown {
+    if (!response || response.trim().length === 0) {
+      throw new Error(`AI返回了空的${errorContext}数据`)
+    }
+
+    // 尝试直接解析JSON
+    try {
+      return JSON.parse(response.trim())
+    } catch {
+      // 尝试从代码块中提取JSON
+      const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (jsonMatch && jsonMatch[1]) {
+        try {
+          return JSON.parse(jsonMatch[1].trim())
+        } catch {
+          throw new Error(`AI返回的${errorContext}数据格式不正确`)
+        }
+      }
+      throw new Error(`AI返回的${errorContext}数据格式不正确`)
+    }
+  }
+
+  // 流式内容生成方法
+  private async generateContentStream(
+    prompt: string,
+    onUpdate: (data: { content: string; reasoning?: string }) => void,
+    outputLanguage?: SupportedLanguage,
+    abortSignal?: AbortSignal
+  ): Promise<{ content: string; reasoning: string }> {
+    const config = this.getCurrentConfig()
+    const modelConfig = this.getModelConfig(config)
+    const language = outputLanguage || 'en'
+    const systemPrompt = getLanguageInstruction(language)
+
+    const messages: Array<{ role: 'system' | 'user'; content: string }> = [
+      {
+        role: 'system',
+        content: systemPrompt,
+      },
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ]
+
+    if (abortSignal?.aborted) {
+      throw new DOMException('Request was aborted', 'AbortError')
+    }
+
+    try {
+      let endpoint = `${modelConfig.apiUrl}/chat/completions`
+      let requestBody: unknown = {
+        model: modelConfig.model,
+        messages,
+        stream: true,
+      }
+
+      if (config.provider === 'openai-responses') {
+        endpoint = `${modelConfig.apiUrl}/responses`
+        requestBody = {
+          model: modelConfig.model,
+          instructions: systemPrompt,
+          input: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          stream: true,
+          store: false,
+          text: { verbosity: 'medium' },
+          include: ['reasoning.encrypted_content'],
+        }
+      }
+
+      // 内置 MindElixirStar 模型：apiKey 只是占位符，实际鉴权走 go 服务的 JWT
+      // - 桌面端：deep link 登录后 JWT 存在 localStorage.auth_token，作为 Bearer 传递
+      // - 网页版：登录态在 cookie 里，需要 credentials: 'include' 携带
+      const isMindElixirModel = modelConfig.apiKey === 'mind-elixir'
+      const authToken = isMindElixirModel
+        ? localStorage.getItem('auth_token')
+        : null
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken ?? modelConfig.apiKey}`,
+      }
+
+      // TokenDance 应用归因：可选参数，用于让平台统计哪些调用来自本应用
+      if (config.provider === 'tokendance') {
+        headers['X-App-URL'] = TOKENDANCE_APP_URL
+      }
+
+      const decoder = new TextDecoder('utf-8')
+      let fullContent = ''
+      let fullReasoning = ''
+      let buffer = ''
+
+      const processChunk = (value: Uint8Array) => {
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+
+        // 保留最后一个可能不完整的行
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmedLine = line.trim()
+          if (!trimmedLine || trimmedLine === 'data: [DONE]') continue
+
+          if (trimmedLine.startsWith('data: ')) {
+            try {
+              const jsonStr = trimmedLine.slice(6)
+              const json = JSON.parse(jsonStr)
+
+              let contentChunk = ''
+              let reasoningChunk = ''
+
+              if (config.provider === 'openai-responses') {
+                if (json.type === 'response.output_text.delta') {
+                  contentChunk = json.delta || ''
+                }
+              } else {
+                const delta = json.choices?.[0]?.delta
+                contentChunk = delta?.content || ''
+                reasoningChunk =
+                  delta?.reasoning_content || delta?.reasoning || ''
+              }
+
+              if (contentChunk || reasoningChunk) {
+                fullContent += contentChunk
+                fullReasoning += reasoningChunk
+                onUpdate({ content: contentChunk, reasoning: reasoningChunk })
+              }
+            } catch (e) {
+              console.warn('Error parsing stream chunk:', e)
+            }
+          }
+        }
+      }
+
+      const response = await appFetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody),
+        signal: abortSignal,
+        // 仅对自家服务携带 cookie，避免向第三方 API 发送凭据
+        credentials: isMindElixirModel ? 'include' : 'same-origin',
+      })
+
+      if (!response.ok) {
+        // TokenDance 在明确判断出恢复路径时会带上 TokenDance-Recovery-Action 响应头，
+        // 据此把「余额不足 / Key 失效 / 周期额度用尽」翻译成可操作的提示，而不是裸 HTTP 错误
+        if (config.provider === 'tokendance') {
+          const action = parseRecoveryAction(response)
+          if (action) {
+            throw new TokenDanceRecoveryError(
+              action,
+              i18n.t(`tokendance.recovery.${action}`)
+            )
+          }
+        }
+
+        if (modelConfig.apiKey === 'mind-elixir') {
+          if (response.status === 402) {
+            throw new Error(i18n.t('mindElixir.insufficientBalance'))
+          }
+          if (response.status === 401 || response.status === 403) {
+            throw new Error(i18n.t('mindElixir.loginRequired'))
+          }
+        }
+        const errorBody = await response.text()
+        throw new Error(
+          `Error: ${response.status} ${response.statusText} - ${errorBody}`
+        )
+      }
+
+      if (!response.body) {
+        throw new Error('Response body is null')
+      }
+
+      const reader = response.body.getReader()
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        processChunk(value)
+      }
+
+      return { content: fullContent, reasoning: fullReasoning }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw error
+      }
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : JSON.stringify(error)
+      throw new Error(
+        `Stream generation failed: ${message}`
+      )
+    }
+  }
+}
+
+// 保持向后兼容性
+export class AiService extends AIService {
+  constructor(apiKey: string) {
+    super({ provider: 'google', apiKey })
+  }
+}

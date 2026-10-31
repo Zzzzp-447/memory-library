@@ -1,0 +1,85 @@
+import { Route, Switch } from 'wouter'
+import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { ThemeProvider } from '@/contexts/ThemeContext'
+import { Sidebar } from './components/layout/Sidebar'
+import { SummaryPage } from './pages/SummaryPage'
+import { SettingsPage } from './pages/SettingsPage'
+import { ModelsPage } from './pages/ModelsPage'
+import { CustomPromptsPage } from './pages/CustomPromptsPage'
+import { CacheManagementPage } from './pages/CacheManagementPage'
+import { ChatPage } from './pages/ChatPage'
+import { DesktopAuthPage } from './pages/DesktopAuthPage'
+import { Menu } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useAuthStore } from './stores/authStore'
+import { initDeepLinkAuth } from './lib/auth'
+import { TokenDanceOAuthBridge } from './components/TokenDanceOAuthBridge'
+
+function App() {
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const { fetchUser } = useAuthStore()
+
+  useEffect(() => {
+    // Fetch user data on app mount
+    fetchUser()
+    // Tauri 桌面端：监听 OAuth deep link 回调（eb2mm://auth?token=xxx）
+    initDeepLinkAuth()
+  }, [])
+
+  return (
+    <ThemeProvider>
+      <TooltipProvider>
+        <div className="flex h-screen overflow-hidden bg-background">
+          <Toaster />
+          <TokenDanceOAuthBridge />
+
+          {/* Desktop Sidebar */}
+          <div className="hidden lg:block">
+            <Sidebar />
+          </div>
+
+          {/* Mobile Sidebar */}
+          <Sidebar
+            isOpen={mobileSidebarOpen}
+            onClose={() => setMobileSidebarOpen(false)}
+            isMobile={true}
+          />
+
+          <div className="flex-1 flex flex-col bg-card max-w-full min-w-0">
+            {/* Mobile Header */}
+            <div className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-card max-w-full">
+              <div className="flex items-center gap-2 min-w-0">
+                <img
+                  src="/icon.png"
+                  alt="icon"
+                  className="h-8 w-8 flex-shrink-0"
+                />
+                <span className="font-semibold text-base truncate">
+                  eBook To Mindmap
+                </span>
+              </div>
+              <button
+                onClick={() => setMobileSidebarOpen(true)}
+                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                <Menu className="h-6 w-6" />
+              </button>
+            </div>
+
+            <Switch>
+              <Route path="/" component={SummaryPage} />
+              <Route path="/models" component={ModelsPage} />
+              <Route path="/custom-prompts" component={CustomPromptsPage} />
+              <Route path="/cache" component={CacheManagementPage} />
+              {import.meta.env.DEV && <Route path="/chat" component={ChatPage} />}
+              <Route path="/desktop-auth" component={DesktopAuthPage} />
+              <Route path="/settings" component={SettingsPage} />
+            </Switch>
+          </div>
+        </div>
+      </TooltipProvider>
+    </ThemeProvider>
+  )
+}
+
+export default App

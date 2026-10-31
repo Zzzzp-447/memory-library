@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>恢复访问 · Memory Library</title>
+<style>
+body{margin:0;background:#f2efe0;color:#352c28;font:17px/1.8 system-ui,sans-serif;min-height:100svh;display:grid;place-items:center}main{max-width:32rem;padding:32px}h1{font-size:26px}button{background:#c9ddf5;border:1.5px solid #352c28;border-radius:8px;padding:10px 22px;font:inherit;cursor:pointer}button:disabled{opacity:.5}
+</style>
+<main><h1>恢复访问</h1><p id="status" role="status">正在更新网页组件。你的卡片、导图和登录信息会保留。</p><button id="retry" disabled>重试</button></main>
+<script>
+const status = document.getElementById('status'), retry = document.getElementById('retry');
+function isRepaired(worker) {
+  return new Promise(resolve => {
+    if (!worker) return resolve(false);
+    const channel = new MessageChannel();
+    const finish = ok => { clearTimeout(timer); channel.port1.close(); resolve(ok); };
+    const timer = setTimeout(() => finish(false), 700);
+    channel.port1.onmessage = event => finish(event.data?.repairVersion >= 3);
+    try { worker.postMessage({ type: 'memory-library-health' }, [channel.port2]); } catch { finish(false); }
+  });
+}
+async function repair() {
+  retry.disabled = true;
+  status.textContent = '正在更新网页组件。你的卡片、导图和登录信息会保留。';
+  try {
+    if (!('serviceWorker' in navigator)) throw new Error('浏览器不支持更新');
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
+    await registration.update();
+    for (let i = 0; i < 40; i++) {
+      if (await isRepaired(navigator.serviceWorker.controller)) {
+        status.textContent = '已恢复，正在打开思维导图…';
+        location.replace('/mindmap-style'); return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    throw new Error('更新暂未完成');
+  } catch {
+    status.textContent = '暂时未能完成恢复，请保持联网后重试。资料未被清除。';
+    retry.disabled = false;
+  }
+}
+retry.onclick = repair;
+repair();
+</script>
+</html>

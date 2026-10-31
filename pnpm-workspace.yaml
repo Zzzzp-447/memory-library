@@ -1,0 +1,6 @@
+allowBuilds:
+  '@swc/core': false
+  '@tailwindcss/oxide': false
+  core-js: false
+  es5-ext: false
+  esbuild: false

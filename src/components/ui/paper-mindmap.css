@@ -1,0 +1,169 @@
+@font-face {
+  font-family: 'Notebook Chinese';
+  src: url('/paper/fonts/LXGWWenKaiScreen.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Notebook Marker';
+  src: url('/paper/fonts/PermanentMarker-Regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+.paper-icon { display:inline-block; width:24px; height:24px; flex-shrink:0; background:currentColor; mask: center / contain no-repeat; -webkit-mask: center / contain no-repeat; }
+
+/* Original SVG texture: horizontal fibres plus sparse, quiet grain. */
+.paper-mindmap, .notebook-preview {
+  --paper-red:#b9210c; --paper-cream:#f2efe0; --paper-blue:#c9ddf5; --paper-yellow:#f9d991; --paper-ink:#352c28;
+  --paper-texture:url('/paper/paper-fibres.svg');
+  color:var(--paper-ink);
+  font-family:'Notebook Chinese', sans-serif;
+}
+.paper-mindmap { isolation:isolate; border-radius:22px 26px 21px 25px / 25px 20px 27px 23px; }
+.paper-mindmap .map-container { font-family:'Notebook Chinese',sans-serif; background-color:var(--paper-cream); background-image:var(--paper-texture); }
+.paper-mindmap .map-container me-tpc {
+  position:relative; padding:9px 17px; line-height:1.6; color:var(--paper-ink);
+  border:1.5px solid #625346; border-radius:11px 15px 10px 14px / 14px 10px 15px 11px;
+  background-color:var(--paper-cream); background-image:var(--paper-texture);
+  box-shadow:2px 3px 0 #352c2812;
+}
+.paper-mindmap .map-container me-main > me-wrapper > me-parent > me-tpc {
+  background-color:var(--paper-blue); border-color:#625346; padding:12px 22px;
+  border-radius:14px 19px 13px 17px / 19px 13px 18px 14px; font-size:19px;
+}
+.paper-mindmap .map-container me-main > me-wrapper:nth-child(even) > me-parent > me-tpc { background-color:var(--paper-yellow); }
+.paper-mindmap .map-container me-root me-tpc {
+  color:var(--paper-cream); background-color:var(--paper-red); border-color:#8d200f;
+  padding:19px 28px; font-size:28px; border-radius:19px 26px 18px 24px / 25px 18px 26px 20px;
+  box-shadow:4px 5px 0 #352c281c;
+}
+.paper-mindmap .map-container me-tpc::after {
+  content:none;
+}
+.paper-mindmap .map-container .selected { outline:2px dashed var(--paper-red); outline-offset:5px; }
+/* Mind Elixir selects the topic element, rather than its presentational text. */
+.paper-mindmap .map-container me-tpc > .text { pointer-events:none; }
+.paper-mindmap .map-container me-tpc > .text a { pointer-events:auto; }
+.paper-mindmap .map-container me-tpc:not([contenteditable]) { -webkit-touch-callout:none; }
+.paper-mindmap .context-menu.touch-context-menu:not([hidden]) { position:fixed; inset:0; z-index:1000; -webkit-touch-callout:none; user-select:none; -webkit-user-select:none; }
+.paper-mindmap .touch-context-menu .menu-list { position:absolute; box-sizing:border-box; width:250px; max-width:calc(100vw - 24px); max-height:calc(100dvh - 24px); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
+.paper-mindmap .touch-context-menu .menu-list li { min-height:44px; padding:10px 15px; font-size:17px; line-height:1.4; }
+.paper-mindmap .touch-context-menu .key { display:none; }
+.paper-mindmap .map-container me-tpc img[role="button"] { pointer-events:auto; cursor:pointer; touch-action:manipulation; }
+.paper-mindmap .map-container me-tpc img[role="button"]:focus-visible { outline:2px dashed #b9210c; outline-offset:3px; }
+.paper-mindmap .map-container me-epd { background:var(--paper-cream); border:1.5px solid #625346; color:var(--paper-ink); border-radius:43% 56% 46% 54%; }
+.paper-mindmap .map-container .tags span { color:#65210f; background:var(--paper-yellow); border-radius:5px 7px 4px 6px; padding:3px 7px; }
+.paper-mindmap .map-container .menu-list { font-family:'Notebook Chinese',sans-serif; border:1.5px solid #625346; border-radius:10px 14px 11px 9px; }
+.paper-mindmap .map-container me-tpc:focus-visible,
+.paper-map-controls button:focus-visible, .notebook-preview button:focus-visible { outline:3px dashed var(--paper-red); outline-offset:4px; }
+.paper-map-controls button {
+  width:44px; height:44px; border:1.5px solid #625346; color:var(--paper-ink); background:var(--paper-cream) var(--paper-texture);
+  border-radius:10px 13px 9px 12px; box-shadow:2px 2px 0 #352c2812; backdrop-filter:none;
+}
+.paper-map-controls button:hover { background-color:var(--paper-yellow); }
+
+.notebook-preview { min-height:100dvh; background:var(--paper-cream) var(--paper-texture); padding:32px clamp(16px,4vw,64px) 20px; }
+.notebook-preview-header { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; margin-bottom:24px; }
+.notebook-preview .notebook-wordmark { font-family:'Notebook Marker',cursive; color:var(--paper-red); font-size:17px; letter-spacing:.08em; }
+.notebook-preview h1 { font-size:clamp(27px,4vw,40px); margin:8px 0; font-weight:600; }
+.notebook-preview p { font-size:15px; line-height:1.8; }
+.notebook-preview-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.notebook-preview-actions button { display:flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:9px 14px; border:1.5px solid #625346; border-radius:10px 14px 9px 13px; background:var(--paper-yellow) var(--paper-texture); cursor:pointer; }
+.notebook-preview-actions button:disabled { opacity:.4; cursor:not-allowed; }
+.notebook-preview-actions button:hover:not(:disabled) { background-color:var(--paper-blue); }
+.notebook-preview-board { height:calc(100dvh - 230px); min-height:440px; border:1.5px solid #625346; border-radius:40% 1.3% 35% 1.7% / 3.5% 34% 3% 38%; box-shadow:5px 6px 0 #352c2810; overflow:hidden; }
+.notebook-preview-footer { display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px 20px; padding-top:14px; font-size:14px; }
+.notebook-preview-status { color:#8d200f; }
+
+/* Long, asymmetric corner arcs suggest a single pen stroke, not noisy edges. */
+.paper-mindmap .map-container me-tpc { border-radius:24% 4% 22% 5% / 6% 24% 5% 27%; }
+.paper-mindmap .map-container me-main > me-wrapper > me-parent > me-tpc,
+.paper-mindmap .map-container me-root me-tpc { border-radius:28% 4% 25% 4% / 6% 26% 5% 29%; }
+.paper-map-controls button, .notebook-preview-actions button { border-radius:24% 5% 22% 5% / 6% 25% 5% 27%; }
+.paper-mindmap .map-container me-tpc,
+.paper-mindmap .map-container me-main > me-wrapper > me-parent > me-tpc,
+.paper-mindmap .map-container me-root me-tpc,
+.paper-map-controls button,
+.notebook-preview-actions button,
+.notebook-preview-board { border-color:transparent; }
+.paper-map-controls button, .notebook-preview-actions button, .notebook-preview-board { position:relative; }
+.paper-mindmap .map-container me-tpc::before,
+.paper-map-controls button::before,
+.notebook-preview-actions button::before,
+.notebook-preview-board::before {
+  content:''; position:absolute; inset:0; border-radius:inherit;
+  border:solid #4b4037; border-width:1.5px 1.8px 1.7px 1.4px; pointer-events:none;
+  filter:url('#notebook-ink-edge');
+}
+.notebook-preview-board::before { z-index:20; border-width:1.9px 2.2px 2.1px 1.7px; }
+.paper-mindmap .map-container me-root me-tpc::before { border-color:#8d200f; }
+
+@media(max-width:640px) {
+  .notebook-preview { padding-top:18px; }
+  .notebook-preview-header { flex-direction:column; gap:14px; margin-bottom:16px; }
+  .notebook-preview-board { height:62dvh; min-height:360px; }
+  .notebook-preview-actions button { padding:8px 11px; }
+}
+
+.mindmap-page-title { display:flex; align-items:center; gap:17px; }
+.mindmap-page-title a { color:var(--paper-ink); padding:10px; display:flex; }
+.notebook-preview h1 { font-family:'Notebook Marker',cursive; font-weight:400; font-size:34px; }
+.notebook-preview-header { align-items:center; margin-bottom:22px; }
+.notebook-preview-board { height:calc(100dvh - 144px); }
+@media(max-width:640px) {
+ .notebook-preview-header { align-items:flex-start; gap:12px; }
+ .notebook-preview h1 { font-size:27px; }
+ .notebook-preview-board { height:calc(100dvh - 190px); min-height:420px; }
+}
+
+/* Horizontal/vertical branches have a zero-area SVG bounding box, so an
+   objectBoundingBox ink filter erases them. Keep node borders textured and
+   render every connector directly, including newly added single children. */
+.paper-mindmap svg.lines path, .paper-mindmap svg.subLines path {
+ stroke-linecap:round; stroke-linejoin:round;
+}
+
+.notebook-preview-header { flex-wrap:wrap; gap:16px; }
+.map-subject-picker { display:flex; align-items:center; gap:10px; font-size:14px; }
+.map-subject-picker select { max-width:220px; padding:10px; border:1px solid #85735d; border-radius:7px 10px 6px 8px; background:#f2efe0; font:inherit; }
+.map-hint { font-size:13px!important; margin:0 0 12px; color:#776957; }
+.textbook-dialog { width:min(660px,calc(100vw - 32px)); max-height:88dvh; overflow:auto; padding:25px; color:#352c28; background:#f2efe0 url('/paper/paper-fibres.svg'); border:1.5px solid #625346; border-radius:18px 24px 17px 21px; font-family:'Notebook Chinese',sans-serif; }
+.textbook-dialog::backdrop { background:#352c2866; backdrop-filter:blur(3px); }
+.textbook-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+.textbook-heading h2 { font-family:'Notebook Marker',cursive; font-size:25px; margin:0; }
+.textbook-dialog label { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; font-size:14px; }
+.textbook-dialog input,.textbook-dialog textarea { width:100%; min-width:0; padding:11px; border:1px solid #8c7b6555; background:#fff7; border-radius:8px; font:inherit; }
+.textbook-search { display:flex; gap:10px; align-items:flex-end; }
+.textbook-search label { flex:1; margin:0; }
+.textbook-dialog .textbook-hint { font-size:12px; color:#776957; margin:12px 0; }
+.textbook-results { display:grid; gap:9px; margin:12px 0; max-height:225px; overflow:auto; }
+.textbook-results button { width:100%; display:flex; flex-direction:column; align-items:flex-start; text-align:left; white-space:normal; }
+.textbook-results span,.textbook-results small { font-size:12px; }
+.textbook-message { color:#9c3020; font-size:13px!important; }
+@media(max-width:640px) {
+ .notebook-preview-actions { width:100%; }
+ .notebook-preview-actions button { font-size:13px; }
+ .textbook-dialog { padding:19px; }
+ .textbook-search { flex-wrap:wrap; }
+ .textbook-search label { flex-basis:100%; }
+ .notebook-preview-board { height:calc(100dvh - 280px); min-height:380px; }
+}
+
+.sync-indicator { display:flex; flex-wrap:wrap; gap:8px 15px; align-items:center; margin:16px 0 0; font:12px/1.7 'Notebook Chinese',sans-serif; color:#7c705f; }
+.sync-indicator>a:first-child { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sync-indicator button { font:inherit; cursor:pointer; border:0; background:transparent; color:#9c3020; text-decoration:underline; }
+.sync-error,.sync-auth { color:#a13c26; }
+.map-history { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0 0 14px; font-size:13px; color:#9c3020; }
+.map-history select { max-width:100%; padding:10px; background:#f2efe0; border:1px solid #8c7b6555; border-radius:8px; }
+.textbook-dialog select { width:100%; padding:10px; background:#f2efe0; border:1px solid #8c7b6555; border-radius:8px; }
+
+.notebook-preview-actions .relation-button { color:#6388a8; }
+.relation-button svg { width:22px; height:22px; flex-shrink:0; }
+.relation-hint { margin:0 0 12px; padding:10px 14px; border-left:3px solid #b7d1ea; background:#c9ddf533; color:#49667f; font-size:14px; }
+.paper-mindmap .knowledge-relation > path { stroke-linecap:round; stroke-linejoin:round; }
+.paper-mindmap .knowledge-relation .arrow-highlight path:not(:first-child) { display:none; }
+.paper-mindmap .circle { min-width:24px; min-height:24px; touch-action:none; }
+.foundation-dialog .textbook-heading h2 { font-family:'Notebook Chinese',sans-serif; }
+.foundation-dialog button { min-height:44px; padding:8px 12px; border:1.5px solid #625346; border-radius:10px 14px 9px 13px; background:#f9d991 url('/paper/paper-fibres.svg'); cursor:pointer; }
+.foundation-dialog .textbook-heading button { display:flex; align-items:center; justify-content:center; background:transparent; border:0; }
+.notebook-preview { padding-top:calc(18px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); }
+@media(max-width:700px) { .notebook-preview input, .notebook-preview select, .notebook-preview textarea { font-size:16px; } }
